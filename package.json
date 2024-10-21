@@ -1,6 +1,6 @@
 {
   "name": "ness-m", 
-  "version": "1.0.3",       
+  "version": "2.0.1",       
   "description": "A CLI for initiating Node.js projects.",
   "main": "index.js",
   "bin": {
