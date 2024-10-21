@@ -3,6 +3,8 @@ const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const { Command } = require('commander');
+const getAllModels = require('./utils/getAllModels');
+const findRoutes = require('./utils/findRoutes');
 
 const program = new Command();
 program.version('1.0.0');
@@ -46,6 +48,63 @@ program
     // Add route reference to app.route.js
     updateAppRouteJs(moduleName, projectPath);
   });
+
+
+  
+program
+  .command('swagger-generate')
+  .description('Generate Swagger documentation for all models and routes')
+  .action(() => {
+    // Step 1: Install necessary Swagger packages
+    installSwaggerPackages();
+
+    // Step 2: Define directories for models and routes
+    const modelsDir = path.join(process.cwd(), 'models'); // Change this if your models are in a different directory
+    const routesDir = path.join(process.cwd(), 'routes'); // Change this if your routes are in a different directory
+    
+    // Step 3: Get models and routes
+    const rootDir = process.cwd(); // Use the project root directly
+
+    // Get all models and routes from the root module folders
+    const models = getAllModels(rootDir);
+    const routes = findRoutes(rootDir);
+
+    // Step 4: Generate Swagger documentation
+    // Path to generate swagger-doc.js
+    const swaggerDocPath = path.join(rootDir, 'swagger-doc.js');
+
+    // Content for swagger-doc.js
+    const swaggerDocContent = `
+      const swaggerJsdoc = require('swagger-jsdoc');
+
+      const options = {
+        definition: {
+          openapi: '3.0.0',
+          info: {
+            title: 'API Documentation',
+            version: '1.0.0',
+          },
+        },
+        apis: ['./**/*.route.js'], // Modify path as necessary for your routes
+      };
+
+      const swaggerSpec = swaggerJsdoc(options);
+
+      module.exports = swaggerSpec;
+      `;
+
+    // Write swagger-doc.js file
+    fs.writeFileSync(swaggerDocPath, swaggerDocContent, 'utf-8');
+    console.log('swagger-doc.js generated at', swaggerDocPath);
+    const outputPath = path.join(process.cwd(), 'swagger-docs.js');
+
+    // Step 5: Write to a file
+    fs.writeFileSync(outputPath, swaggerContent, 'utf-8');
+    addSwaggerToApp()
+    console.log('Swagger documentation generated at swagger-docs.js');
+  });
+
+
 
 function createAppJs(projectPath) {
   const appJsContent = `
@@ -254,9 +313,9 @@ function updateAppRouteJs(moduleName, projectPath) {
 
 
     appRouteContent = appRouteContent
-    .split('\n')            // Split content by newline characters into an array of lines
-    .map(line => ' ' + line) // Add a single space at the beginning of each line
-    .join('\n'); 
+    .split('\n')               // Split content by newline characters into an array of lines
+    .map(line => ' ' + line.trimStart())  // Remove leading spaces and add exactly one space
+    .join('\n');
 
     // Write the updated content back to app.route.js with no extra spaces
     fs.writeFileSync(appRoutePath, appRouteContent); // Trim extra spaces and add final newline
@@ -264,8 +323,93 @@ function updateAppRouteJs(moduleName, projectPath) {
 }
 
 
+// Function to install Swagger packages
+function installSwaggerPackages() {
+  const packages = ['swagger-jsdoc', 'swagger-ui-express'];
+
+  try {
+    console.log('Installing Swagger packages...');
+    execSync(`npm install ${packages.join(' ')}`, { stdio: 'inherit' });
+    console.log('Swagger packages installed successfully.');
+  } catch (error) {
+    console.error('Failed to install Swagger packages:', error.message);
+  }
+}
+
+function generateSwaggerDocumentation(models, routes) {
+  let swaggerComments = '';
+
+  // Loop through each model to generate Swagger definitions
+  for (const modelName in models) {
+    const modelProperties = models[modelName];
+
+    swaggerComments += `
+/**
+ * @swagger
+ * /${modelName.toLowerCase()}:
+ *   post:
+ *     summary: Create a new ${modelName}
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties: ${JSON.stringify(modelProperties, null, 2)}
+ *     responses:
+ *       201:
+ *         description: ${modelName} created
+ */
+    `;
+  }
+
+  // Optionally add routes to the Swagger documentation
+  routes.forEach(route => {
+    const routePath = route.replace(/\\/g, '/').split('/').pop(); // Get the last segment of the route
+    swaggerComments += `
+/**
+ * @swagger
+ * /${routePath}:
+ *   get:
+ *     summary: Get all ${routePath}
+ *     responses:
+ *       200:
+ *         description: Successful response
+ */
+    `;
+  });
+
+  return swaggerComments;
+}
 
 
+
+function addSwaggerToApp(){
+  // Assuming `app.js` is in the project root directory
+  const appJsPath = path.join(process.cwd(), 'app.js');
+  let appJsContent = fs.readFileSync(appJsPath, 'utf-8');
+
+  // Check if Swagger is already included
+  if (!appJsContent.includes('swagger-ui-express')) {
+    // Add the required swagger-ui-express and swagger-doc setup to app.js
+
+    const swaggerSetupCode = `
+  const swaggerUi = require('swagger-ui-express');
+  const swaggerSpec = require('./swagger-doc');
+
+  // Swagger UI route
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+    `;
+
+    // Insert the swagger setup before the app.listen() line
+    const listenPosition = appJsContent.lastIndexOf('app.listen(');
+    appJsContent = appJsContent.slice(0, listenPosition) + swaggerSetupCode + '\n' + appJsContent.slice(listenPosition);
+
+    // Write back the updated content to app.js
+    fs.writeFileSync(appJsPath, appJsContent, 'utf-8');
+    console.log('Swagger route added to app.js');
+  }
+}
 
 
 // Helper function to capitalize the first letter of the module name
