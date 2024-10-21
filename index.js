@@ -252,6 +252,12 @@ function updateAppRouteJs(moduleName, projectPath) {
     // Insert the new router.use line before module.exports
     appRouteContent = appRouteContent.slice(0, useInsertPosition) + newRouteUse + appRouteContent.slice(useInsertPosition);
 
+
+    appRouteContent = appRouteContent
+    .split('\n')            // Split content by newline characters into an array of lines
+    .map(line => ' ' + line) // Add a single space at the beginning of each line
+    .join('\n'); 
+
     // Write the updated content back to app.route.js with no extra spaces
     fs.writeFileSync(appRoutePath, appRouteContent + '\n'); // Trim extra spaces and add final newline
   }
