@@ -232,7 +232,7 @@ function createModuleFiles(modulePath, moduleName) {
 function updateAppRouteJs(moduleName, projectPath) {
   const appRoutePath = path.join(projectPath, 'app.route.js');
   const newRouteImport = `  const ${moduleName}Routes = require('./${moduleName}/${moduleName}.route');\n`;
-  const newRouteUse = `  router.use('/${moduleName}', ${moduleName}Routes);\n`;
+  const newRouteUse = ` router.use('/${moduleName}', ${moduleName}Routes);\n`;
 
   // Read the existing app.route.js file
   let appRouteContent = fs.readFileSync(appRoutePath, 'utf-8').trim(); // Remove extra spaces
@@ -253,7 +253,7 @@ function updateAppRouteJs(moduleName, projectPath) {
     appRouteContent = appRouteContent.slice(0, useInsertPosition) + newRouteUse + appRouteContent.slice(useInsertPosition);
 
     // Write the updated content back to app.route.js with no extra spaces
-    fs.writeFileSync(appRoutePath, appRouteContent.trim() + '\n'); // Trim extra spaces and add final newline
+    fs.writeFileSync(appRoutePath, appRouteContent + '\n'); // Trim extra spaces and add final newline
   }
 }
 
