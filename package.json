@@ -1,6 +1,6 @@
 {
-  "name": "node-express-sequalize-starter", 
-  "version": "1.0.0",       
+  "name": "ness-m", 
+  "version": "1.0.2",       
   "description": "A CLI for initiating Node.js projects.",
   "main": "index.js",
   "bin": {
